@@ -1,6 +1,7 @@
 chibi_srcs = files ([
   'main.c',
   'chibi-application.c',
+  'chibi-window.c',
   ])
 
 chibi_exe = executable (

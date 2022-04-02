@@ -19,48 +19,31 @@
  * along with Chibi.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef __CHIBI_APPLICATION_H__
-#define __CHIBI_APPLICATION_H__
+#ifndef __CHIBI_WINDOW_H__
+#define __CHIBI_WINDOW_H__
 
-#include <CarlaHost.h>
-#include <CarlaUtils.h>
 #include <gtk/gtk.h>
 
-#define CHIBI_APPLICATION_TYPE (chibi_application_get_type ())
+#include <CarlaNative.h>
+#include <CarlaHost.h>
+
+#define CHIBI_WINDOW_TYPE (chibi_window_get_type ())
 G_DECLARE_FINAL_TYPE (
-  ChibiApplication, chibi_application, CHIBI, APPLICATION,
-  GtkApplication)
+  ChibiWindow, chibi_window, CHIBI, WINDOW, GtkApplicationWindow)
 
-typedef struct _ChibiWindow ChibiWindow;
+typedef struct _ChibiApplication ChibiApplication;
 
-struct _ChibiApplication
+typedef struct _ChibiWindow
 {
-  GtkApplication   parent;
+  GtkWindow       parent_instance;
 
-  BinaryType       btype;
+  CarlaHostHandle host_handle;
+  const int       idle_timer;
 
-  PluginType       ptype;
-  char *           ptype_str;
+} ChibiWindow;
 
-  char *           filename;
-  char *           name;
-  char *           label;
-  int64_t          unique_id;
+ChibiWindow *
+chibi_window_new (
+  ChibiApplication * app);
 
-  const CarlaCachedPluginInfo * cached_plugin_nfo;
-
-  /**
-   * Pointer to the GTK thread.
-   *
-   * Used for checking whether the current thread is
-   * the GTK thread.
-   */
-  const GThread *  gtk_thread;
-
-  ChibiWindow *    win;
-};
-
-ChibiApplication *
-chibi_application_new (void);
-
-#endif /* __CHIBI_APPLICATION_H__ */
+#endif /* __CHIBI_WINDOW_H__ */

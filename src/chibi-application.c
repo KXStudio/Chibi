@@ -17,9 +17,26 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with Chibi.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * This file incorporates work covered by the following copyright and
+ * permission notice:
+ *
+ * Copyright (C) 2020 Filipe Coelho <falktx@falktx.com>
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any purpose with
+ * or without fee is hereby granted, provided that the above copyright notice and this
+ * permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+ * TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+ * NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+ * IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "chibi-application.h"
+#include "chibi-window.h"
 
 #include <glib/gi18n.h>
 
@@ -57,15 +74,17 @@ add_option_entries (
     {
       { "version", 'v',  G_OPTION_FLAG_NO_ARG,
         G_OPTION_ARG_CALLBACK, print_version,
-        _("Print version information"),
-        NULL },
+        _("Print version information"), NULL },
+      { "plugin-type", 0, G_OPTION_FLAG_NONE,
+        G_OPTION_ARG_NONE, &self->ptype_str,
+        _("Plugin type"), NULL },
       { 0 },
     };
 
   g_application_add_main_option_entries (
     G_APPLICATION (self), entries);
   g_application_set_option_context_parameter_string (
-    G_APPLICATION (self), _("[LV2-URI]"));
+    G_APPLICATION (self), _("[FILE-OR-URI]"));
 
   char examples[8000];
   sprintf (
@@ -166,6 +185,14 @@ on_startup (
     "Running Chibi in %s", cur_dir);
   g_free (cur_dir);
 
+  if (g_getenv ("NSM_URL"))
+    {
+      /* TODO if under NSM, wait for it to provide a path */
+      g_error ("not implemented yet");
+    }
+
+  self->btype = BINARY_NATIVE;
+
   /* chain up */
   G_APPLICATION_CLASS (chibi_application_parent_class)->
     startup (G_APPLICATION (self));
@@ -198,6 +225,8 @@ on_open (
   gint           n_files,
   const gchar *  hint)
 {
+  ChibiApplication * self = CHIBI_APPLICATION (app);
+
   if (n_files != 1)
     {
       g_error ("Must pass exactly 1 plugin URI");
@@ -205,9 +234,97 @@ on_open (
 
   /* get passed URI */
   GFile * file = files[0];
-  char * file_path = g_file_get_path (file);
-  g_message ("opening %s", file_path);
-  g_free (file_path);
+  self->filename = g_file_get_path (file);
+  if (!self->filename)
+    {
+      self->filename = g_file_get_uri (file);
+    }
+
+  /* determine plugin type */
+  self->ptype = PLUGIN_LV2;
+  if (self->ptype_str)
+    {
+      if (g_strcmp0 (self->ptype_str, "vst2") == 0)
+        {
+          self->ptype = PLUGIN_VST2;
+        }
+      else if (g_strcmp0 (self->ptype_str, "vst3") == 0)
+        {
+          self->ptype = PLUGIN_VST3;
+        }
+      else if (g_strcmp0 (self->ptype_str, "au") == 0)
+        {
+          self->ptype = PLUGIN_AU;
+        }
+      /* TODO more */
+    }
+
+  if (self->ptype == PLUGIN_LV2 || self->ptype == PLUGIN_AU)
+    {
+      const unsigned int count =
+        carla_get_cached_plugin_count (self->ptype, NULL);
+      if (count > 0)
+        {
+          for (unsigned int i = 0; i < count; ++i)
+            {
+              const CarlaCachedPluginInfo * pinfo =
+                carla_get_cached_plugin_info (
+                  self->ptype, i);
+
+              if (!pinfo->valid)
+                  continue;
+
+              if (self->ptype == PLUGIN_LV2)
+                {
+                  char ** tokens =
+                    g_strsplit (pinfo->label, "/", 2);
+                  char * uri = tokens[1];
+
+                  /* this is to make sure that the URI
+                   * received by glib matches the URI of the
+                   * plugin in corner cases like `urn:` */
+                  GFile * uri_file =
+                    g_file_new_for_uri (uri);
+                  uri = g_file_get_uri (uri_file);
+
+                  if (g_strcmp0 (uri, self->filename) == 0)
+                    {
+                      self->cached_plugin_nfo = pinfo;
+                      g_free (uri);
+                      g_strfreev (tokens);
+                      g_message ("found %s", pinfo->label);
+                      break;
+                    }
+                  g_free (uri);
+                  g_strfreev (tokens);
+                }
+            }
+
+          if (!self->cached_plugin_nfo)
+            {
+              g_error ("plugin not found");
+            }
+        }
+      else
+        {
+          g_error ("No plugins available, bailing out");
+        }
+
+      self->name =
+        g_strdup (self->cached_plugin_nfo->name);
+      self->label =
+        g_strdup (self->cached_plugin_nfo->label);
+
+      g_message (
+        "opening %s", self->label);
+    }
+  else
+    {
+      g_error ("unimplemented plugin type");
+    }
+
+  self->win = chibi_window_new (self);
+  gtk_window_present (GTK_WINDOW (self->win));
 }
 
 static void
