@@ -21,15 +21,10 @@
 
 #include "chibi-application.h"
 
-int
-main (
-  int     argc,
-  char ** argv)
-{
-  ChibiApplication * app = chibi_application_new ();
-  int status =
-    g_application_run (G_APPLICATION (app), argc, argv);
-  g_object_unref (app);
+int main(int argc, char **argv) {
+  ChibiApplication *app = chibi_application_new();
+  int status = g_application_run(G_APPLICATION(app), argc, argv);
+  g_object_unref(app);
 
   return status;
 }

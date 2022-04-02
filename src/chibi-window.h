@@ -24,26 +24,23 @@
 
 #include <gtk/gtk.h>
 
-#include <CarlaNative.h>
 #include <CarlaHost.h>
+#include <CarlaNative.h>
 
-#define CHIBI_WINDOW_TYPE (chibi_window_get_type ())
-G_DECLARE_FINAL_TYPE (
-  ChibiWindow, chibi_window, CHIBI, WINDOW, GtkApplicationWindow)
+#define CHIBI_WINDOW_TYPE (chibi_window_get_type())
+G_DECLARE_FINAL_TYPE(ChibiWindow, chibi_window, CHIBI, WINDOW,
+                     GtkApplicationWindow)
 
 typedef struct _ChibiApplication ChibiApplication;
 
-typedef struct _ChibiWindow
-{
-  GtkWindow       parent_instance;
+typedef struct _ChibiWindow {
+  GtkWindow parent_instance;
 
   CarlaHostHandle host_handle;
-  const int       idle_timer;
+  const int idle_timer;
 
 } ChibiWindow;
 
-ChibiWindow *
-chibi_window_new (
-  ChibiApplication * app);
+ChibiWindow *chibi_window_new(ChibiApplication *app);
 
 #endif /* __CHIBI_WINDOW_H__ */
