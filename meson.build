@@ -9,7 +9,14 @@ project (
     ],
   )
 
-gtk4_dep = dependency ('gtk4')
+gtk4_dep = dependency (
+  'gtk4',
+  fallback: ['gtk4', 'libgtk_dep'],
+  default_options: [
+    'demos=false', 'build-examples=false',
+    'build-tests=false',
+    'media-gstreamer=disabled',
+    'introspection=disabled'])
 carla_host_plugin_dep = dependency ('carla-host-plugin')
 
 subdir ('src')
