@@ -6,6 +6,7 @@ project (
     'warning_level=2',
     'buildtype=debugoptimized',
     'c_std=c11',
+    'wrap_mode=nofallback',
     ],
   )
 
