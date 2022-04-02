@@ -353,7 +353,7 @@ chibi_window_new (
     if (!carla_add_plugin (
            self->host_handle, app->btype, app->ptype,
            app->filename, proper_name, app->label,
-           app->unique_id, NULL, 0x0))
+           app->unique_id, NULL, PLUGIN_OPTIONS_NULL))
     {
       g_error (
         "Failed to add plugin, error was: %s",
