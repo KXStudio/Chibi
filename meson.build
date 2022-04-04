@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2022 Alexandros Theodotou <alex@zrythm.org>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 project (
   'Chibi', 'c',
   version: '0.1',

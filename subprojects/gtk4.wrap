@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2022 Alexandros Theodotou <alex@zrythm.org>
+# SPDX-License-Identifier: CC0-1.0
+
 [wrap-file]
 directory = gtk-4.6.2
 

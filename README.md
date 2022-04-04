@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2022 Alexandros Theodotou <alex@zrythm.org>
+SPDX-FileCopyrightText: 2020 Filipe Coelho <falktx@falktx.com>
+SPDX-License-Identifier: FSFAP
+-->
+
 # mini-host plugin loader
 
 What is Chibi?
