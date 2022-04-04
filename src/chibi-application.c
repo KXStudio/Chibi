@@ -1,9 +1,6 @@
+// SPDX-FileCopyrightText: 2022 Alexandros Theodotou <alex@zrythm.org>
+// SPDX-FileCopyrightText: 2020 Filipe Coelho <falktx@falktx.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
-/* Chibi - Carla's mini-host plugin loader.
- *
- * Copyright (C) 2022 Alexandros Theodotou <alex at zrythm dot org>
- * Copyright (C) 2020 Filipe Coelho <falktx@falktx.com>
- */
 
 #include "chibi-application.h"
 #include "chibi-window.h"
