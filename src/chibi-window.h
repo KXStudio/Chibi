@@ -24,6 +24,8 @@ typedef struct _ChibiWindow {
   CarlaHostHandle host_handle;
   const int idle_timer;
 
+  guint idle_source_id;
+
 } ChibiWindow;
 
 ChibiWindow *chibi_window_new(ChibiApplication *app);

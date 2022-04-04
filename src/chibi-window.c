@@ -193,11 +193,73 @@ static const char *carla_file_callback(void *const ptr,
   return NULL;
 }
 
+const char *get_gsk_renderer_type(void) {
+  static const char *renderer_type = NULL;
+  if (renderer_type)
+    return renderer_type;
+
+  GdkSurface *surface = gdk_surface_new_toplevel(gdk_display_get_default());
+  GskRenderer *renderer = gsk_renderer_new_for_surface(surface);
+  if (g_strcmp0(G_OBJECT_TYPE_NAME(renderer), "GskGLRenderer") == 0) {
+    renderer_type = "GL";
+  } else if (g_strcmp0(G_OBJECT_TYPE_NAME(renderer), "GskCairoRenderer") == 0) {
+    renderer_type = "Cairo";
+  } else {
+    g_warning("unknown renderer");
+    renderer_type = "Unknown";
+  }
+
+  gsk_renderer_unrealize(renderer);
+  g_object_unref(renderer);
+  gdk_surface_destroy(surface);
+
+  return renderer_type;
+}
+
+static GdkGLContext *clear_gl_context(void) {
+  if (g_strcmp0(get_gsk_renderer_type(), "GL") == 0) {
+    GdkGLContext *context = gdk_gl_context_get_current();
+    if (context) {
+      g_object_ref(context);
+      gdk_gl_context_clear_current();
+    }
+    return context;
+  }
+
+  return NULL;
+}
+
+static void return_gl_context(GdkGLContext *context) {
+  if (context) {
+    gdk_gl_context_make_current(context);
+    g_object_unref(context);
+  }
+}
+
+/**
+ * Tick callback for the plugin UI.
+ */
+static gboolean idle_cb(gpointer user_data) {
+  ChibiWindow *self = (ChibiWindow *)user_data;
+  GdkGLContext *context = clear_gl_context();
+  carla_engine_idle(self->host_handle);
+  return_gl_context(context);
+
+  return G_SOURCE_CONTINUE;
+}
+
+static void idle_cb_destroy(gpointer user_data) {
+  g_return_if_fail(user_data);
+  ChibiWindow *self = (ChibiWindow *)user_data;
+
+  self->idle_source_id = 0;
+}
+
 ChibiWindow *chibi_window_new(ChibiApplication *app) {
   g_return_val_if_fail(app->name, NULL);
 
   char *proper_name = g_strdup_printf(
-      "Chibi%s%s", g_ascii_isdigit(app->name[0]) ? "-" : "", app->name);
+      "Chibi - %s%s", g_ascii_isdigit(app->name[0]) ? "-" : "", app->name);
 
   ChibiWindow *self = g_object_new(CHIBI_WINDOW_TYPE, "application", app,
                                    "title", proper_name, NULL);
@@ -214,23 +276,6 @@ ChibiWindow *chibi_window_new(ChibiApplication *app) {
   gdk_rgba_parse(&fg_color, "white");
   gdk_rgba_parse(&bg_color, "black");
 
-  /* TODO */
-#if 0
-  carla_set_engine_option (
-    self->host_handle, ENGINE_OPTION_FRONTEND_BACKGROUND_COLOR,
-    bgColorValue, NULL);
-  carla_set_engine_option (
-    self->host_handle, ENGINE_OPTION_FRONTEND_FOREGROUND_COLOR,
-    fgColorValue, NULL);
-#endif
-
-  /* TODO */
-#if 0
-    carla_set_engine_option (
-      self->host_handle, ENGINE_OPTION_FRONTEND_UI_SCALE,
-      static_cast<int>(devicePixelRatioF() * 1000), "");
-#endif
-
   carla_set_engine_callback(self->host_handle, carla_engine_callback, self);
   carla_set_file_callback(self->host_handle, carla_file_callback, self);
 
@@ -245,16 +290,28 @@ ChibiWindow *chibi_window_new(ChibiApplication *app) {
     g_message("found driver %u: %s", i, carla_get_engine_driver_name(i));
   }
 
-  // NOTE: this assumes JACK driver for now
-  bool ret = carla_engine_init(self->host_handle, "JACK", "Chibi");
+  carla_set_engine_option(self->host_handle, ENGINE_OPTION_PROCESS_MODE,
+                          ENGINE_PROCESS_MODE_CONTINUOUS_RACK, NULL);
+  carla_set_engine_option(self->host_handle, ENGINE_OPTION_TRANSPORT_MODE,
+                          ENGINE_TRANSPORT_MODE_INTERNAL, NULL);
+  /* using dummy driver for now */
+  bool ret = carla_engine_init(self->host_handle, "Dummy", "Chibi");
   if (!ret) {
     g_error("failed to init engine: %s",
             carla_get_last_error(self->host_handle));
   }
 
-  if (!carla_add_plugin(self->host_handle, app->btype, app->ptype,
-                        app->filename, proper_name, app->label, app->unique_id,
-                        NULL, PLUGIN_OPTIONS_NULL)) {
+  ret = false;
+  switch (app->ptype) {
+  case PLUGIN_LV2:
+    ret = carla_add_plugin(self->host_handle, app->btype, app->ptype, NULL,
+                           app->name, app->uri, 0, NULL, PLUGIN_OPTIONS_NULL);
+    break;
+  default:
+    g_error("not implemented");
+    break;
+  }
+  if (!ret) {
     g_error("Failed to add plugin, error was: %s",
             carla_get_last_error(self->host_handle));
     return NULL;
@@ -273,6 +330,30 @@ ChibiWindow *chibi_window_new(ChibiApplication *app) {
     else
         adjustSize();
 #endif
+
+  /* show UI (FIXME this creates a new window managed by
+   * carla - switch to embed) */
+  GdkGLContext *context = clear_gl_context();
+  carla_show_custom_ui(self->host_handle, 0, true);
+  return_gl_context(context);
+
+  /* do not use tick callback: */
+  /* falktx: I am doing some checks on
+   * ildaeil/carla, and see there is a nice
+   * way without conflicts to avoid the GL
+   * context issues. it came from cardinal,
+   * where I cannot draw plugin UIs in the
+   * same function as the main stuff,
+   * because it is in between other opengl
+   * calls (before and after). the solution
+   * I found was to have a dedicated idle
+   * timer, and handle the plugin UI stuff
+   * there, outside of the main application
+   * draw function */
+  self->idle_source_id =
+      g_timeout_add_full(G_PRIORITY_DEFAULT,
+                         /* 60 fps */
+                         1000 / 60, idle_cb, self, idle_cb_destroy);
 
   return self;
 }

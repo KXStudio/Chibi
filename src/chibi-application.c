@@ -95,7 +95,8 @@ ChibiApplication *chibi_application_new(void) {
   return self;
 }
 
-static void finalize(ChibiApplication *self) { /* TODO free members */ }
+static void finalize(ChibiApplication *self) { /* TODO free members */
+}
 
 /**
  * First function that gets called afted CLI args
@@ -187,16 +188,17 @@ static void on_open(GApplication *app, GFile **files, gint n_files,
 
         if (self->ptype == PLUGIN_LV2) {
           char **tokens = g_strsplit(pinfo->label, "/", 2);
-          char *uri = tokens[1];
+          char *pl_uri = tokens[1];
 
           /* this is to make sure that the URI
            * received by glib matches the URI of the
            * plugin in corner cases like `urn:` */
-          GFile *uri_file = g_file_new_for_uri(uri);
-          uri = g_file_get_uri(uri_file);
+          GFile *uri_file = g_file_new_for_uri(pl_uri);
+          char *uri = g_file_get_uri(uri_file);
 
           if (g_strcmp0(uri, self->filename) == 0) {
             self->cached_plugin_nfo = pinfo;
+            self->uri = g_strdup(pl_uri);
             g_free(uri);
             g_strfreev(tokens);
             g_message("found %s", pinfo->label);

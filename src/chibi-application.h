@@ -26,6 +26,7 @@ struct _ChibiApplication {
   char *ptype_str;
 
   char *filename;
+  char *uri;
   char *name;
   char *label;
   int64_t unique_id;
